@@ -22,6 +22,7 @@ import ch.qos.logback.classic.Logger;
 
 public class ExampleApplication extends Thread{
 	private String RESULT_SOLR_URL = null;
+	private List<DoubleSeries> metrics = null;
 	private static Random rng = new Random();
 	private static Logger logger = (Logger) LoggerFactory.getLogger(ExampleApplication.class);
 	
@@ -29,10 +30,7 @@ public class ExampleApplication extends Thread{
 			List<DoubleSeries> metrics,
 			String RESULT_SOLR_URL) {
 		this.RESULT_SOLR_URL = RESULT_SOLR_URL;
-		if (metrics == null) return ;
-		for (int i = 0; i < metrics.size(); i++) {
-			this.init(metrics.get(i));
-		}
+		this.metrics = metrics;
 	}
 	
 	private void addADResult(Double anomaly,
@@ -124,7 +122,7 @@ public class ExampleApplication extends Thread{
 			long timestamp = metric.get(i).getInstant();
 			List<Triple<Double, Double, Double>> prediction_result = oada.predict();
 			Double anomaly = oada.detection(value, timestamp).getItem();
-			if (i < n) anomaly = 0.0;
+			if (i < n) continue;
 			if (anomaly > 1.0) anomaly = 1.0;
 			anomalys.add(new TimeSeries.Entry<Double>(anomaly, timestamp));
 			do {
@@ -148,6 +146,22 @@ public class ExampleApplication extends Thread{
 				}
 				break;
 			} while(true);
+		}
+	}
+	
+	public void run() {
+		if (metrics == null) return ;
+		while(true) {
+			for (int i = 0; i < metrics.size(); i++) {
+				this.init(metrics.get(i));
+			}
+			try {
+				Thread.sleep(1000 * 60 * 60 * 24);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				break;
+			}
 		}
 	}
 }

@@ -39,7 +39,7 @@ public class RSAPMMLServers {
 	
 	public RSAPMMLServers() {
 		initialize();
-		new ExampleApplication(lseries, RESULT_SOLR_URL);
+		new ExampleApplication(lseries, RESULT_SOLR_URL).start();
 		ADApplication ada = new ADApplication(OPTION_SOLR_URL, time_field);
 		MetricOptionApplication moa = new MetricOptionApplication(
 				OPTION_SOLR_URL,

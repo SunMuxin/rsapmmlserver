@@ -110,12 +110,12 @@ public class ADModel extends Thread{
 			}
 		}
 		if (value < up_margin && value > down_margin) {
-			up_margin = (0.2+rng.nextDouble()*0.8)*(up_margin-value) + value;
-			down_margin = (rng.nextDouble()*0.8)*(value-down_margin) + down_margin;
+			up_margin = (0.2+rng.nextDouble()*0.2)*(up_margin-value) + value;
+			down_margin = (rng.nextDouble()*0.2+0.6)*(value-down_margin) + down_margin;
 		} else if (value > up_margin) {
-			down_margin = (rng.nextDouble()*0.8)*(up_margin-down_margin) + down_margin;
+			down_margin = (rng.nextDouble()*0.2+0.6)*(up_margin-down_margin) + down_margin;
 		} else if (value < down_margin) {
-			up_margin = (0.2+rng.nextDouble()*0.8)*(up_margin-down_margin) + down_margin;
+			up_margin = (0.2+rng.nextDouble()*0.2)*(up_margin-down_margin) + down_margin;
 		}
 		String factor = null;
 		if (down_margin > value) {

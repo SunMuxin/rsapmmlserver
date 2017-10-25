@@ -9,6 +9,7 @@ import java.util.Properties;
 import org.slf4j.LoggerFactory;
 
 import com.realsight.westworld.server.application.JmMemoryADApplication;
+import com.realsight.westworld.server.application.JmSystemApplication;
 import com.realsight.westworld.server.application.JmThreadADApplication;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
@@ -25,9 +26,11 @@ public class RSAPMMLServers {
 		initialize();
 		JmThreadADApplication jtada = new JmThreadADApplication(OPTION_SOLR_URL, time_field);
 		JmMemoryADApplication jmada = new JmMemoryADApplication(OPTION_SOLR_URL, time_field);
+		JmSystemApplication jsa = new JmSystemApplication(OPTION_SOLR_URL);
 		while(true){
 			jtada.status(false);
 			jmada.status(false);
+			jsa.status(false);
 			try {
 				Thread.sleep(1000L * 60);
 			} catch (InterruptedException e) {

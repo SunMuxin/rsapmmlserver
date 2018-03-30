@@ -1,4 +1,4 @@
-package com.neusoft.aclome.alert.ai.lib.context;
+package com.neusoft.aclome.alert.ai.lib.data;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -10,27 +10,39 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.google.gson.JsonObject;
+import com.neusoft.aclome.alert.ai.lib.util.CONFIG;
+import com.neusoft.aclome.alert.ai.lib.util.CONSTANT;
 import com.neusoft.aclome.westworld.tsp.lib.solr.SolrReader;
 import com.neusoft.aclome.westworld.tsp.lib.util.Entry;
 import com.neusoft.aclome.westworld.tsp.lib.util.TimeUtil;
 
-public class SolrContext {
+public class SolrContextData {
 	
 	private JsonObject info = null;
 	private String fqs = null;
-	private String time_field = null;
 	private long timestamp;
 
-	public SolrContext(JsonObject info, String fqs, String time_field) {
-		this.time_field = time_field;
+	public SolrContextData(JsonObject info, String fqs) {
 		this.fqs = fqs;
 		this.info = info;
-		this.timestamp = TimeUtil.CSTTimeConversion2(getProperty(time_field))*1000;
+		this.timestamp = TimeUtil.CSTTimeConversion2(getProperty(CONFIG.TIME_FIELD));
 	}
 	
 	public String getProperty(String key) {
 		if (!info.has(key)) return null;
 		return info.get(key).getAsString();
+	}
+	
+	public void addProperty(String key, int value) {
+		info.addProperty(key, value);
+	}
+	
+	public void addProperty(String key, double value) {
+		info.addProperty(key, value);
+	}
+	
+	public void addProperty(String key, String value) {
+		info.addProperty(key, value);
 	}
 	
 	private double getValueFromInfo(FieldStatsInfo info, String type) {
@@ -76,14 +88,14 @@ public class SolrContext {
 	private List<Entry<String, Double>> update(Map<String, FieldStatsInfo> minfo) {
 		if (minfo == null) return null;
 		
-		String stats_fields = getProperty("stats_field_s");
-		String stats_type = getProperty("stats_type_s");
-		String stats_facet = getProperty("stats_facet_s");
+		String stats_fields = getProperty(CONSTANT.OPTION_STATS_FIELD_KEY);
+		String stats_type = getProperty(CONSTANT.OPTION_STATS_TYPE_KEY);
+		String stats_facet = getProperty(CONSTANT.OPTION_STATS_FACET_KEY);
 
 		List<Entry<String, Double>> res = new ArrayList<Entry<String, Double>>();
 		
 		try {
-			for (String stats_field : stats_fields.split("&")){
+			for (String stats_field : stats_fields.split(String.valueOf(CONSTANT.and))){
 				double value = getValueFromInfo(minfo.get(stats_field), stats_type);
 				res.add(new Entry<String, Double> (stats_field, value));
 			}
@@ -91,8 +103,8 @@ public class SolrContext {
 			e.printStackTrace();
 		}
 
-		if (stats_facet!=null && !stats_facet.equals("")){
-			for (String stats_field : stats_fields.split("&")){
+		if (stats_facet!=null && !stats_facet.equals(CONSTANT.STRING_NULL)){
+			for (String stats_field : stats_fields.split(String.valueOf(CONSTANT.and))){
 				List<FieldStatsInfo> facet_infos = minfo.get(stats_field).getFacets().get(stats_facet);
 				for (FieldStatsInfo facet_info : facet_infos) {
 					try {
@@ -111,21 +123,22 @@ public class SolrContext {
 	public synchronized Entry<List<Entry<String, Double>>, Long> nextFieldStats() {
 		if (hasNext() == false) return null;
 		
-		long interval = Long.parseLong(getProperty("interval_l").trim());
-		String stats_fields = getProperty("stats_field_s");
-		String solr_reader_url = getProperty("solr_reader_url_s");
-		String stats_facet = getProperty("stats_facet_s");
+		long interval = Long.parseLong(getProperty(CONSTANT.OPTION_INTERVAL_KEY).trim());
+		String stats_fields = getProperty(CONSTANT.OPTION_STATS_FIELD_KEY);
+		String solr_reader_url = getProperty(CONSTANT.OPTION_SOLR_READER_URL_KEY);
+		String stats_facet = getProperty(CONSTANT.OPTION_STATS_FACET_KEY);
 		
 		List<String> filters = new ArrayList<String>();
-		filters.add(this.time_field + ":[" + 
-				TimeUtil.formatUnixtime2(timestamp) + " TO " + 
-				TimeUtil.formatUnixtime2(timestamp+interval) + "]");
-		for (int i = 0; i < fqs.split("&").length; i++) {
-			filters.add(fqs.split("&")[i]);
+		filters.add(String.format(CONSTANT.STRING_FORMAT_SOLR_SECTION_FQ, 
+				CONFIG.TIME_FIELD,
+				TimeUtil.formatUnixtime2(timestamp),
+				TimeUtil.formatUnixtime2(timestamp+interval)));
+		for (int i = 0; i < fqs.split(String.valueOf(CONSTANT.and)).length; i++) {
+			filters.add(fqs.split(String.valueOf(CONSTANT.and))[i]);
 		}
 		List<String> stats_field_list = new ArrayList<String>();
-		for (int i = 0; i < stats_fields.split("&").length; i++) {
-			stats_field_list.add(stats_fields.split("&")[i]);
+		for (int i = 0; i < stats_fields.split(String.valueOf(CONSTANT.and)).length; i++) {
+			stats_field_list.add(stats_fields.split(String.valueOf(CONSTANT.and))[i]);
 		}
 		SolrReader sr = new SolrReader(solr_reader_url,
 				1,
@@ -147,21 +160,23 @@ public class SolrContext {
 	public synchronized boolean hasNext() {
 		// TODO Auto-generated method stub
 		
-		long interval = Long.parseLong(getProperty("interval_l").trim());
-		String solr_reader_url = getProperty("solr_reader_url_s");
+		long interval = Long.parseLong(getProperty(CONSTANT.OPTION_INTERVAL_KEY).trim());
+		String solr_reader_url = getProperty(CONSTANT.OPTION_SOLR_READER_URL_KEY);
 		
 		List<String> filters = new ArrayList<String>();
-		filters.add(this.time_field + ":[" + 
-				TimeUtil.formatUnixtime2(this.timestamp) + " TO *]");
-		for (int i = 0; i < fqs.split("&").length; i++) {
-			filters.add(this.fqs.split("&")[i]);
+		filters.add(String.format(CONSTANT.STRING_FORMAT_SOLR_SECTION_FQ, 
+				CONFIG.TIME_FIELD,
+				TimeUtil.formatUnixtime2(timestamp),
+				CONSTANT.asterisk));
+		for (int i = 0; i < fqs.split(String.valueOf(CONSTANT.and)).length; i++) {
+			filters.add(this.fqs.split(String.valueOf(CONSTANT.and))[i]);
 		}
 		SolrReader sr = new SolrReader(solr_reader_url, filters);
-		sr.setSort(time_field, false);
+		sr.setSort(CONFIG.TIME_FIELD, false);
 		boolean ret = false;
 		if (sr.hasNextResponse()) {
 			try {
-				long curr_timestamp = TimeUtil.timeConversion2(new JSONObject(sr.nextResponse()).optString(time_field));
+				long curr_timestamp = TimeUtil.timeConversion2(new JSONObject(sr.nextResponse()).optString(CONFIG.TIME_FIELD));
 				if (timestamp + interval > curr_timestamp) {
 					ret = false;
 				} else {

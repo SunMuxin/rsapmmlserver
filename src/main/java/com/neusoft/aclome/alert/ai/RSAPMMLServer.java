@@ -4,7 +4,7 @@ import org.slf4j.LoggerFactory;
 
 import com.neusoft.aclome.alert.ai.application.ADApplication;
 import com.neusoft.aclome.alert.ai.application.BMWReportApplication;
-import com.neusoft.aclome.alert.ai.application.JmThreadADApplication;
+import com.neusoft.aclome.alert.ai.application.ThreadDiagnoseApplication;
 import com.neusoft.aclome.alert.ai.application.UpdateCONFIGApplication;
 import com.neusoft.aclome.alert.ai.lib.util.CONFIG;
 import com.neusoft.aclome.alert.ai.lib.util.Util;
@@ -13,7 +13,6 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 
 public class RSAPMMLServer {
-	
 
 	private static Logger logger = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
 	static {
@@ -21,14 +20,14 @@ public class RSAPMMLServer {
 	}
 	
 	private final ADApplication ada;
-	private final JmThreadADApplication jtada;
+	private final ThreadDiagnoseApplication tda;
 	private final BMWReportApplication bmwra;
 	
 	private RSAPMMLServer() {
 		UpdateCONFIGApplication.update();
 		new UpdateCONFIGApplication().status(false);
 		this.ada = new ADApplication(CONFIG.OPTION_SOLR_URL, CONFIG.TIME_FIELD);
-		this.jtada = new JmThreadADApplication(CONFIG.OPTION_SOLR_URL, CONFIG.TIME_FIELD);
+		this.tda = new ThreadDiagnoseApplication(CONFIG.OPTION_SOLR_URL, CONFIG.TIME_FIELD);
 		this.bmwra = new BMWReportApplication(CONFIG.OPTION_SOLR_URL, CONFIG.TIME_FIELD);
 	}
 	
@@ -60,10 +59,10 @@ public class RSAPMMLServer {
 		}
 		
 		if (CONFIG.THREAD_DIAGNOSE_APP) {
-			jtada.status(false);
+			tda.status(false);
 			Util.info("RSAPMMLServer.run()", "start up JmThreadADApplication.");
 		} else {
-			jtada.status(true);
+			tda.status(true);
 			Util.info("RSAPMMLServer.run()", "stop JmThreadADApplication.");
 		}
 		

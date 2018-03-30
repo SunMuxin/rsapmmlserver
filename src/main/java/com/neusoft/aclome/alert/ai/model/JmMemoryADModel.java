@@ -4,10 +4,10 @@ import java.io.IOException;
 import java.util.List;
 import org.slf4j.LoggerFactory;
 
-import com.neusoft.aclome.alert.ai.lib.context.SolrContext;
+import com.neusoft.aclome.alert.ai.lib.data.SolrContextData;
+import com.neusoft.aclome.alert.ai.lib.sample.JmGCInfo;
 import com.neusoft.aclome.alert.ai.lib.tosolr.JmMemoryInfoToSolr;
 import com.neusoft.aclome.westworld.tsp.api.OnlineAnomalyDetectionAPI;
-import com.neusoft.aclome.westworld.tsp.lib.model.analysis.JmGCInfo;
 import com.neusoft.aclome.westworld.tsp.lib.series.TimeSeries;
 import com.neusoft.aclome.westworld.tsp.lib.util.Entry;
 import com.neusoft.aclome.westworld.tsp.lib.util.TimeUtil;
@@ -17,7 +17,7 @@ import ch.qos.logback.classic.Logger;
 public class JmMemoryADModel extends Thread{
 	private final OnlineAnomalyDetectionAPI oad;
 	private volatile boolean stopflag = true;
-	private SolrContext context = null;
+	private SolrContextData context = null;
 	private static Logger logger = (Logger) LoggerFactory.getLogger(JmMemoryADModel.class);
 	private final String jm_threadsmemory_url;
 	private final String jm_system_url;
@@ -44,10 +44,9 @@ public class JmMemoryADModel extends Thread{
 			String stats_type,
 			String ad_id,
 			String name,
-			String time_field,
 			Double max_value,
 			Double min_value) throws Exception {
-		this.context = new SolrContext(null, fq.toString(), time_field);
+		this.context = new SolrContextData(null, fq.toString());
 
 		if (max_value!=null && min_value!=null) {
 			this.oad = new OnlineAnomalyDetectionAPI(min_value, max_value);

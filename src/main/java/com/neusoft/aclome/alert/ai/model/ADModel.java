@@ -5,8 +5,9 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.gson.JsonObject;
-import com.neusoft.aclome.alert.ai.lib.context.SolrContext;
+import com.neusoft.aclome.alert.ai.lib.data.SolrContextData;
 import com.neusoft.aclome.alert.ai.lib.tosolr.ADInfoToSolr;
+import com.neusoft.aclome.alert.ai.lib.util.CONSTANT;
 import com.neusoft.aclome.westworld.tsp.api.OnlineAnomalyDetectionAPI;
 import com.neusoft.aclome.westworld.tsp.lib.series.TimeSeries;
 import com.neusoft.aclome.westworld.tsp.lib.util.Entry;
@@ -15,26 +16,30 @@ import com.neusoft.aclome.westworld.tsp.lib.util.TimeUtil;
 public class ADModel extends Thread{
 	private Map<String, OnlineAnomalyDetectionAPI> oads = null;
 	private volatile boolean stopflag = true;
-	private SolrContext context = null;
+	private SolrContextData context = null;
 	private Thread thread = null;
-	private static final Double th = 0.75;
 	
-	public ADModel(String time_field, JsonObject info) {
-		StringBuffer fq = new StringBuffer();
-		fq.append("res_id:"+info.get("res_id_s").getAsString());
-		fq.append("&"+info.get("stats_field_s").getAsString()+":*");
-		fq.append("&one_level_type:basic_info");
+	public ADModel(JsonObject info) {
 		
-		info.addProperty("stats_type_s", "mean");
-		this.context = new SolrContext(info, fq.toString(), time_field);
+		StringBuffer fq = new StringBuffer();
+		fq.append(String.format("%s%c%s", CONSTANT.DATA_RES_ID_KEY, CONSTANT.colon, info.get(CONSTANT.OPTION_RES_ID_KEY).getAsString()));
+		fq.append(CONSTANT.and);
+		fq.append(String.format("%s%c%c", info.get(CONSTANT.OPTION_STATS_FIELD_KEY).getAsString(), CONSTANT.colon, CONSTANT.asterisk));
+		fq.append(CONSTANT.and);
+		fq.append(CONSTANT.DATA_BASIC_FQ);
+		
+		info.addProperty(CONSTANT.OPTION_STATS_TYPE_KEY, CONSTANT.SOLR_STATS_TYPE_MEAN);
+		
+		this.context = new SolrContextData(info, fq.toString());
 		this.oads = new HashMap<String, OnlineAnomalyDetectionAPI>();
 	}
 
 	private void update() {
 		if (context.hasNext()==false) return ;
 		
-		double min = Double.parseDouble(context.getProperty("min_f").trim());
-		double max = Double.parseDouble(context.getProperty("max_f").trim());
+		
+		double min = Double.parseDouble(context.getProperty(CONSTANT.OPTION_MIN_KEY).trim());
+		double max = Double.parseDouble(context.getProperty(CONSTANT.OPTION_MAX_KEY).trim());
 
 		Entry<List<Entry<String, Double>>, Long> entrys = context.nextFieldStats();
 		if (entrys!=null){
@@ -47,7 +52,7 @@ public class ADModel extends Thread{
 					facet_oad = this.oads.getOrDefault(facet_name, new OnlineAnomalyDetectionAPI(min, max));
 					TimeSeries.Entry<Double> res = facet_oad.detection(facet_value, entrys.getSecond());
 					if (res == null) continue;
-					new Thread(new ADInfoToSolr(context, facet_value, res.getInstant(), res.getItem()>th), "to solr").start();
+					new Thread(new ADInfoToSolr(context, facet_value, res.getInstant(), res.getItem()>CONSTANT.anomaly_threshold)).start();
 					this.oads.put(facet_name, facet_oad);
 				} catch(ClassCastException e) {
 					e.printStackTrace();
@@ -59,7 +64,7 @@ public class ADModel extends Thread{
 	@Override
 	public void run() {
 		// TODO Auto-generated method stub
-		long interval = Long.parseLong(context.getProperty("interval_l").trim());
+		long interval = Long.parseLong(context.getProperty(CONSTANT.OPTION_INTERVAL_KEY).trim());
 
 		while(!stopflag) {
 			if (context.hasNext()) {

@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.neusoft.aclome.alert.ai.lib.util.CONSTANT;
 import com.neusoft.aclome.alert.ai.lib.util.Util;
 import com.neusoft.aclome.alert.ai.model.ADModel;
 import com.neusoft.aclome.westworld.tsp.lib.solr.SolrReader;
@@ -21,31 +22,29 @@ public class ADApplication extends Thread{
 	private String OPTION_SOLR_URL = null;
 	private Map<String, ADModel> ADMS = null;
 	private boolean stopflag = false;
-	private String time_field = null;
 	private static Logger logger = (Logger) LoggerFactory.getLogger(ADApplication.class);
 	private static Thread thread = null;
 	
 	public ADApplication(String OPTION_SOLR_URL, String time_field) {
 		this.OPTION_SOLR_URL = OPTION_SOLR_URL;
 		this.ADMS = new HashMap<String, ADModel>();
-		this.time_field = time_field;
 	}
 	
 	public void updateModels() {
 		List<String> filters = new ArrayList<String>();
-		filters.add("option_s:ad");
+		filters.add(String.format("%s:%s", CONSTANT.OPTION_OPTION_KEY, CONSTANT.OPTION_ANOMALY_DETECTION_RESULT_VALUE));
 		SolrReader sr = new SolrReader(this.OPTION_SOLR_URL, filters);
 		Map<String, ADModel> TADMS = new HashMap<String, ADModel>();
 		while(sr.hasNextResponse()) {
 			JsonObject modelJSON = new JsonParser().parse(sr.nextResponse()).getAsJsonObject();
-			String id = modelJSON.get("id").getAsString();
+			String id = modelJSON.get(CONSTANT.SOLR_ID_KEY).getAsString();
 			if (ADMS.containsKey(id)) {
 				ADMS.get(id).status(false);
 				TADMS.put(id, ADMS.get(id));
 				continue;
 			}
 			Util.info("ADApplication - updateModels()", modelJSON.toString());
-			ADModel adm = new ADModel(time_field, modelJSON);
+			ADModel adm = new ADModel(modelJSON);
 			adm.status(false);
 			TADMS.put(id, adm);
 		}

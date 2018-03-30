@@ -19,14 +19,12 @@ public class JmMemoryADApplication extends Thread{
 	private String OPTION_SOLR_URL = null;
 	private Map<String, JmMemoryADModel> JMADMS = null;
 	private boolean stopflag = false;
-	private String time_field = null;
 	private static Logger logger = (Logger) LoggerFactory.getLogger(JmMemoryADApplication.class);
 	private static Thread thread = null;
 	
 	public JmMemoryADApplication(String OPTION_SOLR_URL, String time_field) {
 		this.OPTION_SOLR_URL = OPTION_SOLR_URL;
 		this.JMADMS = new HashMap<String, JmMemoryADModel>();
-		this.time_field = time_field;
 	}
 	
 	public void updateModels() throws Exception {
@@ -76,7 +74,6 @@ public class JmMemoryADApplication extends Thread{
 						stats_type,
 						id,
 						show_name,
-						time_field,
 						max_value,
 						min_value);
 				jtadm.status(false);

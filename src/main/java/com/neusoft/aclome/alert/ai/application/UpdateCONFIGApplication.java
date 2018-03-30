@@ -4,29 +4,19 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
 import java.util.Properties;
 
-import com.google.gson.JsonObject;
-import com.neusoft.aclome.alert.ai.lib.context.SolrContext;
 import com.neusoft.aclome.alert.ai.lib.util.CONFIG;
 import com.neusoft.aclome.alert.ai.lib.util.Util;
 
 
-@SuppressWarnings("unused")
 public class UpdateCONFIGApplication implements Runnable {
 	
 	private static Thread thread = null;
 	
 	private boolean stopflag = false;
 	
-	private static final String SOLR_URL_KEY = "apm.solr.url";
-	private static final String SOLR_CORE_SELECTOR_KEY = "apm.solr.core.selector";
-	private static final char WEB_SEPARATOR = '/';
-	
-	private static final long sleep_time_mill = 1000 * 60 * 10;
+	private static final long sleep_time_mill = 1000 * 60 * 60;
 	
 	public static void update() {
 		Path root = Paths.get(System.getProperty("user.dir")).getParent();

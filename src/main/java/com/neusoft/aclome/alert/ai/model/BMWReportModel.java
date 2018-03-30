@@ -20,7 +20,6 @@ import com.neusoft.aclome.alert.ai.lib.filter.WindowsFilter;
 import com.neusoft.aclome.alert.ai.lib.util.Util;
 import com.neusoft.aclome.westworld.tsp.lib.solr.SolrReader;
 import com.neusoft.aclome.westworld.tsp.lib.solr.SolrWriter;
-import com.neusoft.aclome.westworld.tsp.lib.util.Entry;
 import com.neusoft.aclome.westworld.tsp.lib.util.TimeUtil;
 
 public class BMWReportModel extends Thread{
@@ -30,7 +29,7 @@ public class BMWReportModel extends Thread{
 	private final JsonObject info;
 	private final String time_field;
 	private static final long sleeptime = 1000 * 60 * 60 * 24;
-	private static final int STATUS_MONTH = 2;
+	private static final int STATUS_MONTH = 1;
 	
 	private final List<Filter> filters = new ArrayList<Filter>();
 	
@@ -57,29 +56,18 @@ public class BMWReportModel extends Thread{
 		return info.get(key).getAsString();
 	}
 	
-	private List<String> JsonArray2List(JsonArray json_array) {
-		List<String> list = new ArrayList<String>();
-		for (int i = 0; i < json_array.size(); i++) {
-			list.add(json_array.get(i).getAsString());
-		}
-		return list;
-	}
-	
 	private void pushSolr(JsonArray json_array) throws Exception {
 		String solr_url = getProperty("solr_writer_url_s");
 		SolrWriter sw = new SolrWriter(solr_url);
+		JsonObject doc = new JsonObject();
 		for (int i = 0; i < json_array.size(); i++) {
-			List<Entry<String,?>> entrys = new ArrayList<Entry<String, ?>>();
 			JsonObject json_object = json_array.get(i).getAsJsonObject();
 			for (Map.Entry<String, JsonElement> entry : json_object.entrySet()) {
-				if(entry.getValue().isJsonArray()) {
-					entrys.add(new Entry<String, List<String>>(entry.getKey(), JsonArray2List(entry.getValue().getAsJsonArray())));
-				} else {
-					entrys.add(new Entry<String, String>(entry.getKey(), entry.getValue().getAsString()));
-				}
+				doc.add(entry.getKey(), entry.getValue());
 			}
-			entrys.add(new Entry<String, String>("rs)timestamp", TimeUtil.formatUnixtime2(System.currentTimeMillis())));
-			sw.write(entrys);
+			doc.addProperty("rs_timestamp", TimeUtil.formatUnixtime2(System.currentTimeMillis()));
+			Util.info("push solr", doc.toString());
+			sw.write(doc);
 		}
 		sw.flush();
 		sw.close();

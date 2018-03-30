@@ -33,7 +33,6 @@ public class BMWReportApplication extends Thread{
 		Map<String, BMWReportModel> TBMWRS = new HashMap<String, BMWReportModel>();
 		while(sr.hasNextResponse()) {
 			JsonObject modelJSON = new JsonParser().parse(sr.nextResponse()).getAsJsonObject();
-			Util.info("updateModels", modelJSON.toString());
 			String id = modelJSON.get("id").getAsString();
 			if (BMWRS.containsKey(id)) {
 				BMWRS.get(id).status(false);

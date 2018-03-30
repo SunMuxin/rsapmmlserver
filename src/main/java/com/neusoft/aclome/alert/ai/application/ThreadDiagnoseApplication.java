@@ -8,38 +8,37 @@ import java.util.Map;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.neusoft.aclome.alert.ai.model.JmThreadADModel;
+import com.neusoft.aclome.alert.ai.lib.util.CONSTANT;
+import com.neusoft.aclome.alert.ai.model.ThreadDiagnoseModel;
 import com.neusoft.aclome.westworld.tsp.lib.solr.SolrReader;
 
-public class JmThreadADApplication extends Thread{
+public class ThreadDiagnoseApplication extends Thread{
 	private String OPTION_SOLR_URL = null;
-	private Map<String, JmThreadADModel> JTADMS = null;
+	private Map<String, ThreadDiagnoseModel> TMS = null;
 	private boolean stopflag = false;
-	private String time_field = null;
 	private static Thread thread = null;
 	
-	public JmThreadADApplication(String OPTION_SOLR_URL, String time_field) {
+	public ThreadDiagnoseApplication(String OPTION_SOLR_URL, String time_field) {
 		this.OPTION_SOLR_URL = OPTION_SOLR_URL;
-		this.JTADMS = new HashMap<String, JmThreadADModel>();
-		this.time_field = time_field;
+		this.TMS = new HashMap<String, ThreadDiagnoseModel>();
 	}
 	
 	public void updateModels() throws RuntimeException {
 		List<String> filters = new ArrayList<String>();
-		filters.add("option_s:jm_thread_ad");
+		filters.add(String.format(CONSTANT.STRING_FORMAT_SOLR_BASIC_FQ, CONSTANT.OPTION_OPTION_KEY, CONSTANT.OPTION_THREAD_DIAGNOSE_RESULT_VALUE));
 		SolrReader sr = new SolrReader(this.OPTION_SOLR_URL, filters);
-		Map<String, JmThreadADModel> TJTADMS = new HashMap<String, JmThreadADModel>();
+		Map<String, ThreadDiagnoseModel> TTMS = new HashMap<String, ThreadDiagnoseModel>();
 		while(sr.hasNextResponse()) {
 			JsonObject modelJSON = new JsonParser().parse(sr.nextResponse()).getAsJsonObject();
-			String id = modelJSON.get("id").getAsString();
-			if (JTADMS.containsKey(id)) {
-				JTADMS.get(id).status(false);
-				TJTADMS.put(id, JTADMS.get(id));
+			String id = modelJSON.get(CONSTANT.SOLR_ID_KEY).getAsString();
+			if (TMS.containsKey(id)) {
+				TMS.get(id).status(false);
+				TTMS.put(id, TMS.get(id));
 				continue;
 			}
-			JmThreadADModel jtadm = new JmThreadADModel(OPTION_SOLR_URL, time_field, modelJSON);
+			ThreadDiagnoseModel jtadm = new ThreadDiagnoseModel(OPTION_SOLR_URL, modelJSON);
 			jtadm.status(false);
-			TJTADMS.put(id, jtadm);
+			TTMS.put(id, jtadm);
 		}
 		try {
 			sr.close();
@@ -47,14 +46,14 @@ public class JmThreadADApplication extends Thread{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		for (Map.Entry<String, JmThreadADModel> entry : JTADMS.entrySet()) {
-			if (TJTADMS.containsKey(entry.getKey())) {
+		for (Map.Entry<String, ThreadDiagnoseModel> entry : TMS.entrySet()) {
+			if (TTMS.containsKey(entry.getKey())) {
 				entry.getValue().status(false);
 			} else {
 				entry.getValue().status(true);
 			}
 		}
-		this.JTADMS = TJTADMS;
+		this.TMS = TTMS;
 	}
 	
 	@Override
@@ -69,14 +68,14 @@ public class JmThreadADApplication extends Thread{
 				e.printStackTrace();
 			}
 		}
-		for(JmThreadADModel jtadm : this.JTADMS.values()) {
+		for(ThreadDiagnoseModel jtadm : this.TMS.values()) {
 			jtadm.status(true);
 		}
 	}
 	
 	public synchronized void status(boolean stopflag) {
 		this.stopflag = stopflag;
-		for(JmThreadADModel jtadm : this.JTADMS.values()) {
+		for(ThreadDiagnoseModel jtadm : this.TMS.values()) {
 			jtadm.status(stopflag);
 		}
 		if (stopflag) {

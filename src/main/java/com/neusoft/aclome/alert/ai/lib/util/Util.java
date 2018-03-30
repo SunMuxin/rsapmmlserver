@@ -7,7 +7,6 @@ import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Iterator;
@@ -28,58 +27,21 @@ import org.apache.http.protocol.HTTP;
 import org.apache.http.util.EntityUtils;
 
 import com.google.gson.Gson;
-import com.neusoft.aclome.westworld.tsp.lib.solr.SolrWriter;
-import com.neusoft.aclome.westworld.tsp.lib.util.Entry;
 
 public class Util {
 	
 	private static final String charset = "utf-8"; 
 	
-	private static final String root = System.getProperty("user.dir");
-	private static final Path log_path = Paths.get(root, "logs", "alertai.out");
+	private static final Path root = Paths.get(System.getProperty("user.dir")).getParent();
+	private static final Path log_path = Paths.get(root.toString(), "logs", "alertai.out");
 	private static final SimpleDateFormat date_formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-	
-	public static void addJMThreadADOption(
-			String option_url,
-			String res_id,
-			String name,
-			String solr_reader_url,
-			String solr_writer_url,
-			String jm_thread_url,
-			long interval ) {
-		
-		SolrWriter sw = new SolrWriter(option_url);
-		List<Entry<String, ?>> entrys = new ArrayList<Entry<String, ?>>();
-		entrys.add(new Entry<String, String>("option", "jm_thread_ad"));
-		entrys.add(new Entry<String, String>("res_id", res_id));
-		entrys.add(new Entry<String, String>("name", name));
-		entrys.add(new Entry<String, String>("solr_reader_url", solr_reader_url));
-		entrys.add(new Entry<String, String>("solr_writer_url", solr_writer_url));
-		entrys.add(new Entry<String, String>("jm_thread_url", jm_thread_url));
-		entrys.add(new Entry<String, String>("fq", String.format("res_id:%s&res_ip:*&one_level_type:basic_info&JAVAEE_CPU_used:*", res_id)));
-		entrys.add(new Entry<String, Long>("start_timestamp", System.currentTimeMillis()));
-		entrys.add(new Entry<String, Long>("interval", interval));
-		entrys.add(new Entry<String, String>("stats_field", "JAVAEE_CPU_used"));
-		entrys.add(new Entry<String, String>("stats_type", "mean"));
-		entrys.add(new Entry<String, String>("rs_timestamp", TimeUtil.formatUnixtime2(System.currentTimeMillis())));
-		entrys.add(new Entry<String, Double>("max", 100.0));
-		entrys.add(new Entry<String, Double>("min", 0.0));
-		Util.info("addJMThreadADOption", entrys.toString());
-		try {
-			sw.write(entrys);
-			sw.close();
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
-	}
 	
 	public static void info(String name, String message) {
 		String content = String.format("%s [info] %s - %s", 
 				date_formatter.format(new Date()), 
 				name, 
 				message);
+		System.out.println(content);
 		try {
 			log_path.getParent().toFile().mkdirs();
 			FileWriter fw = new FileWriter(log_path.toFile(), true);
@@ -99,6 +61,7 @@ public class Util {
 				date_formatter.format(new Date()), 
 				name, 
 				message);
+		System.err.println(content);
 		try {
 			log_path.getParent().toFile().mkdirs();
 			FileWriter fw = new FileWriter(log_path.toFile(), true);

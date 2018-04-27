@@ -2,46 +2,77 @@ package com.neusoft.aclome.alert.ai.application;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+
+import org.quartz.Job;
+import org.quartz.JobDataMap;
+import org.quartz.JobExecutionContext;
+import org.quartz.JobExecutionException;
+import org.quartz.Scheduler;
+import org.quartz.SchedulerException;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.neusoft.aclome.alert.ai.lib.filter.HighAlarmFilter;
+import com.neusoft.aclome.alert.ai.lib.filter.Filter;
+import com.neusoft.aclome.alert.ai.lib.filter.LowAlarmFilter;
+import com.neusoft.aclome.alert.ai.lib.filter.MediumAlarmFilter;
+import com.neusoft.aclome.alert.ai.lib.filter.MetricFilter;
+import com.neusoft.aclome.alert.ai.lib.util.CONFIG;
+import com.neusoft.aclome.alert.ai.lib.util.CONSTANT;
 import com.neusoft.aclome.alert.ai.lib.util.Util;
 import com.neusoft.aclome.alert.ai.model.BMWReportModel;
 import com.neusoft.aclome.westworld.tsp.lib.solr.SolrReader;
 
-public class BMWReportApplication extends Thread{
-	private String OPTION_SOLR_URL = null;
-	private Map<String, BMWReportModel> BMWRS = null;
-	private boolean stopflag = false;
-	private String time_field = null;
-	private static Thread thread = null;
+public class BMWReportApplication implements Job{
+	private static ConcurrentMap<String, Scheduler> BMWRS = new ConcurrentHashMap<String, Scheduler>();
 	
-	public BMWReportApplication(String OPTION_SOLR_URL, String time_field) {
-		this.OPTION_SOLR_URL = OPTION_SOLR_URL;
-		this.BMWRS = new HashMap<String, BMWReportModel>();
-		this.time_field = time_field;
+	public JobDataMap getJobDataMap(JsonObject info) {
+		JobDataMap jobDataMap = new JobDataMap();
+
+		jobDataMap.put(CONSTANT.Job_Data_Map_Info, info);
+
+		List<Filter> filters = new ArrayList<Filter>();
+		
+		filters.add(new HighAlarmFilter());
+		filters.add(new MediumAlarmFilter());
+		filters.add(new LowAlarmFilter());
+		filters.add(new MetricFilter("res_id", "hostHealth", "serverHealth"));
+		filters.add(new MetricFilter("res_id", "JAVAEE_Health", "applicationHealth"));
+		filters.add(new MetricFilter("res_id", "dbHealth", "dbHealth"));
+		filters.add(new MetricFilter("res_id", "LINUX_CpuUsage", "CpuUsage"));
+		filters.add(new MetricFilter("res_id", "LINUX_DiskUsePercent", "DiskUsePercent"));
+		filters.add(new MetricFilter("res_id", "LINUX_MemoryUsage", "MemoryUsage"));
+		filters.add(new MetricFilter("res_id", "WIN_CpuUsage", "CpuUsage"));
+		filters.add(new MetricFilter("res_id", "WIN_DiskUsePercent", "DiskUsePercent"));
+		filters.add(new MetricFilter("res_id", "WIN_MemoryUsage", "MemoryUsage"));
+		filters.add(new MetricFilter("app_id", "responseElapsed", "responseElapsed"));
+
+		jobDataMap.put(CONSTANT.Job_Data_Map_Filters, filters);
+
+		return jobDataMap;
 	}
 	
-	public void updateModels() {
+	public void updateModels() throws SchedulerException {
 		List<String> filters = new ArrayList<String>();
 		filters.add("option_s:bmw_report");
-		SolrReader sr = new SolrReader(this.OPTION_SOLR_URL, filters);
-		Map<String, BMWReportModel> TBMWRS = new HashMap<String, BMWReportModel>();
+		SolrReader sr = new SolrReader(CONFIG.OPTION_SOLR_URL, filters);
+		ConcurrentMap<String, Scheduler> TBMWRS = new ConcurrentHashMap<String, Scheduler>();
 		while(sr.hasNextResponse()) {
-			JsonObject modelJSON = new JsonParser().parse(sr.nextResponse()).getAsJsonObject();
-			String id = modelJSON.get("id").getAsString();
+			JsonObject info = new JsonParser().parse(sr.nextResponse()).getAsJsonObject();
+			String id = info.get("id").getAsString();
 			if (BMWRS.containsKey(id)) {
-				BMWRS.get(id).status(false);
 				TBMWRS.put(id, BMWRS.get(id));
 				continue;
 			}
-			BMWReportModel BMWR = new BMWReportModel(time_field, modelJSON);
-			BMWR.status(false);
-			TBMWRS.put(id, BMWR);
+			Scheduler scheduler = Util.creatJob("group"+id, "job-"+id, "trigger-"+id, BMWReportModel.class, getJobDataMap(info));
+			if (!scheduler.isShutdown()) {
+				scheduler.start();
+			}
+			TBMWRS.put(id, scheduler);
 		}
 		try {
 			sr.close();
@@ -49,46 +80,24 @@ public class BMWReportApplication extends Thread{
 			// TODO Auto-generated catch block
 			Util.error("updateModels", e.getMessage());
 		}
-		for (Map.Entry<String, BMWReportModel> entry:BMWRS.entrySet()) {
-			if (TBMWRS.containsKey(entry.getKey())) {
-				entry.getValue().status(false);
-			} else {
-				entry.getValue().status(true);
+		for (Map.Entry<String, Scheduler> entry : BMWRS.entrySet()) {
+			if (!TBMWRS.containsKey(entry.getKey())) {
+				if (entry.getValue().isStarted()) {
+					entry.getValue().shutdown();
+				}
 			}
 		}
-		this.BMWRS = TBMWRS;
+		BMWRS = TBMWRS;
 	}
 	
 	@Override
-	public void run() {
+	public void execute(JobExecutionContext context) throws JobExecutionException {
 		// TODO Auto-generated method stub
-		while(!stopflag) {
-			try {
-				updateModels();
-				Thread.sleep(1000L * 60);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-				Util.error("BMWReportApplication - run", e.getMessage());
-			}
-		}
-		for (Entry<String, BMWReportModel> entry : BMWRS.entrySet()) {
-			entry.getValue().status(true);
-		}
-	}
-	
-	public synchronized void status(boolean stopflag) {
-		this.stopflag = stopflag;
-		for (Entry<String, BMWReportModel> entry : BMWRS.entrySet()) {
-			entry.getValue().status(stopflag);
-		}
-		if (stopflag) {
-			return ;
-		} else {
-			if (thread==null || !thread.isAlive()){
-				thread = new Thread(this);
-				thread.start();
-			}
+		try {
+			updateModels();
+		} catch (SchedulerException e) {
+			// TODO Auto-generated catch block
+			Util.error("BMWReportApplication", e.getMessage());
 		}
 	}
 	

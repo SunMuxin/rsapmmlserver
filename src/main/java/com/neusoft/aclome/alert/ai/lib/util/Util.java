@@ -1,5 +1,9 @@
 package com.neusoft.aclome.alert.ai.lib.util;
 
+import static org.quartz.JobBuilder.newJob;
+import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
+import static org.quartz.TriggerBuilder.newTrigger;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -25,6 +29,13 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.protocol.HTTP;
 import org.apache.http.util.EntityUtils;
+import org.quartz.Job;
+import org.quartz.JobDataMap;
+import org.quartz.JobDetail;
+import org.quartz.Scheduler;
+import org.quartz.SchedulerException;
+import org.quartz.Trigger;
+import org.quartz.impl.StdSchedulerFactory;
 
 import com.google.gson.Gson;
 
@@ -32,27 +43,33 @@ public class Util {
 	
 	private static final String charset = "utf-8"; 
 	
+	private static final boolean screen = true;
 	private static final Path root = Paths.get(System.getProperty("user.dir")).getParent();
 	private static final Path log_path = Paths.get(root.toString(), "logs", "alertai.out");
 	private static final SimpleDateFormat date_formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+	
+	private static final int intervalInSeconds = 1;
 	
 	public static void info(String name, String message) {
 		String content = String.format("%s [info] %s - %s", 
 				date_formatter.format(new Date()), 
 				name, 
 				message);
-		System.out.println(content);
-		try {
-			log_path.getParent().toFile().mkdirs();
-			FileWriter fw = new FileWriter(log_path.toFile(), true);
-			PrintWriter pw = new PrintWriter(fw);
-			pw.println(content);
-			pw.flush();
-			pw.close();
-			fw.close();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+		if (screen) {
+			System.out.println(content);
+		} else {
+			try {
+				log_path.getParent().toFile().mkdirs();
+				FileWriter fw = new FileWriter(log_path.toFile(), true);
+				PrintWriter pw = new PrintWriter(fw);
+				pw.println(content);
+				pw.flush();
+				pw.close();
+				fw.close();
+	        } catch (IOException e) {
+	            throw new RuntimeException(e);
+	        }
+		}
 	}
 	
 	public static void error(String name, String message) {
@@ -61,18 +78,45 @@ public class Util {
 				date_formatter.format(new Date()), 
 				name, 
 				message);
-		System.err.println(content);
-		try {
-			log_path.getParent().toFile().mkdirs();
-			FileWriter fw = new FileWriter(log_path.toFile(), true);
-			PrintWriter pw = new PrintWriter(fw);
-			pw.println(content);
-			pw.flush();
-			pw.close();
-			fw.close();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+		if (screen) {
+			System.err.println(content);
+		} else {
+			try {
+				log_path.getParent().toFile().mkdirs();
+				FileWriter fw = new FileWriter(log_path.toFile(), true);
+				PrintWriter pw = new PrintWriter(fw);
+				pw.println(content);
+				pw.flush();
+				pw.close();
+				fw.close();
+	        } catch (IOException e) {
+	            throw new RuntimeException(e);
+	        }
+		}
+	}
+	
+	public static Scheduler creatJob(String group, String jobName, String triggerName, 
+			Class<? extends Job> jobClass, JobDataMap newJobDataMap) throws SchedulerException {
+		
+		Scheduler scheduler = StdSchedulerFactory.getDefaultScheduler();
+		
+		Trigger trigger = newTrigger()
+				.withIdentity(triggerName, group)
+				.startNow()
+				.withSchedule(
+						simpleSchedule().withIntervalInSeconds(
+								intervalInSeconds)
+						.repeatForever())
+				.build();
+		
+		JobDetail job = newJob(jobClass)
+				.withIdentity(jobName, group)
+				.setJobData(newJobDataMap)
+				.build();
+		
+		scheduler.scheduleJob(job, trigger);
+		
+		return scheduler;
 	}
 	
     public static void writeStringToTempFile(String content) {

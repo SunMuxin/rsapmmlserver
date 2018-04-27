@@ -4,7 +4,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.google.gson.JsonObject;
+import org.quartz.Job;
+import org.quartz.JobExecutionContext;
+import org.quartz.JobExecutionException;
+
 import com.neusoft.aclome.alert.ai.lib.data.SolrContextData;
 import com.neusoft.aclome.alert.ai.lib.tosolr.ADInfoToSolr;
 import com.neusoft.aclome.alert.ai.lib.util.CONSTANT;
@@ -13,30 +16,11 @@ import com.neusoft.aclome.westworld.tsp.lib.series.TimeSeries;
 import com.neusoft.aclome.westworld.tsp.lib.util.Entry;
 import com.neusoft.aclome.westworld.tsp.lib.util.TimeUtil;
 
-public class ADModel extends Thread{
-	private Map<String, OnlineAnomalyDetectionAPI> oads = null;
-	private volatile boolean stopflag = true;
-	private SolrContextData context = null;
-	private Thread thread = null;
-	
-	public ADModel(JsonObject info) {
-		
-		StringBuffer fq = new StringBuffer();
-		fq.append(String.format("%s%c%s", CONSTANT.DATA_RES_ID_KEY, CONSTANT.colon, info.get(CONSTANT.OPTION_RES_ID_KEY).getAsString()));
-		fq.append(CONSTANT.and);
-		fq.append(String.format("%s%c%c", info.get(CONSTANT.OPTION_STATS_FIELD_KEY).getAsString(), CONSTANT.colon, CONSTANT.asterisk));
-		fq.append(CONSTANT.and);
-		fq.append(CONSTANT.DATA_BASIC_FQ);
-		
-		info.addProperty(CONSTANT.OPTION_STATS_TYPE_KEY, CONSTANT.SOLR_STATS_TYPE_MEAN);
-		
-		this.context = new SolrContextData(info, fq.toString());
-		this.oads = new HashMap<String, OnlineAnomalyDetectionAPI>();
-	}
+public class ADModel implements Job{
+	private Map<String, OnlineAnomalyDetectionAPI> oads = new HashMap<String, OnlineAnomalyDetectionAPI>();
 
-	private void update() {
+	private void update(SolrContextData context) {
 		if (context.hasNext()==false) return ;
-		
 		
 		double min = Double.parseDouble(context.getProperty(CONSTANT.OPTION_MIN_KEY).trim());
 		double max = Double.parseDouble(context.getProperty(CONSTANT.OPTION_MAX_KEY).trim());
@@ -60,36 +44,13 @@ public class ADModel extends Thread{
 			}
 		}
 	}
-	
-	@Override
-	public void run() {
-		// TODO Auto-generated method stub
-		long interval = Long.parseLong(context.getProperty(CONSTANT.OPTION_INTERVAL_KEY).trim());
 
-		while(!stopflag) {
-			if (context.hasNext()) {
-				update();
-			} else {
-				try {
-					Thread.sleep(interval/5);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
-			
-		}
-	}
-	
-	public synchronized void status(boolean stopflag) {
-		this.stopflag = stopflag;
-		if (stopflag) {
-			return ;
-		} else {
-			if (thread==null || !thread.isAlive()){
-				thread = new Thread(this);
-				thread.start();
-			}
+	@Override
+	public void execute(JobExecutionContext context) throws JobExecutionException {
+		// TODO Auto-generated method stub
+		SolrContextData solr_context = (SolrContextData) context.getJobDetail().getJobDataMap().get("solr_context");
+		if (solr_context.hasNext()) {
+			update(solr_context);
 		}
 	}
 }

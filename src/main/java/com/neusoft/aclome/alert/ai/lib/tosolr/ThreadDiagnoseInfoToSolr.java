@@ -79,7 +79,7 @@ public class ThreadDiagnoseInfoToSolr implements Runnable{
 		doc.addProperty(CONSTANT.RCA_VALUE_KEY, value);
 				
 		try {
-			if (anomaly) {
+			if (anomaly && this.value<CONSTANT.get_thread_lock_threshold) {
 				JmThreadSample jt = new JmThreadSample(context.getProperty(CONSTANT.THREAD_DIAGNOSE_URL_KEY), CONSTANT.two_minite);
 				Digraph<Node> dg = new Digraph<Node>();
 				JmThreadData jtd = jt.getJDT(0);
@@ -117,15 +117,14 @@ public class ThreadDiagnoseInfoToSolr implements Runnable{
 				summary.addProperty(CONSTANT.SUMMARY_DEAD_LOCK, deadlock);
 				summary.addProperty(CONSTANT.SUMMARY_GC_TIME, CONSTANT.int_zero);
 				summary.addProperty(CONSTANT.SUMMARY_LONGEST_LOCK_CHAIN, dg.getLongestChain());
-				summary.addProperty(CONSTANT.SUMMARY_THREAD_SUGGESTION, jt.getSuggestion(dg.getLongestChain()));
-				summary.addProperty(CONSTANT.SUMMARY_THREAD_SUMMARY, jt.getSummary(dg.getLongestChain()));
+				summary.addProperty(CONSTANT.SUMMARY_THREAD_SUGGESTION, jt.getSuggestion(dg.getLongestChain(), value/100.0));
+				summary.addProperty(CONSTANT.SUMMARY_THREAD_SUMMARY, jt.getSummary(dg.getLongestChain(), value/100.0));
 
 				doc.add(CONSTANT.RCA_THREAD_STACK_TRACE_KEY, jt.getThreadStackTraces());
 				doc.add(CONSTANT.RCA_THREAD_DURATION_KEY, jt.getThreadDuration());
 				doc.addProperty(CONSTANT.RCA_THREAD_LOCK_KEY, dg.keyChain(CONSTANT.key_chain_limit_length).toString());
 				doc.addProperty(CONSTANT.RCA_THREAD_SUMMARY_KEY, summary.toString());
 				doc.addProperty(CONSTANT.RCA_TYPE_KEY, CONSTANT.MESSAGE_ANOMALY);
-
 				Util.info(ThreadDiagnoseInfoToSolr.class.getName(), CONSTANT.MESSAGE_ANOMALY);
 			} else {
 				doc.addProperty(CONSTANT.RCA_TYPE_KEY, CONSTANT.MESSAGE_NOMALY);
@@ -143,7 +142,7 @@ public class ThreadDiagnoseInfoToSolr implements Runnable{
 			sw.close();
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
+			Util.error("ThreadDiagnoseInfoToSolr", e.getMessage());
 		}
 	}
 

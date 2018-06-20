@@ -106,11 +106,11 @@ public class RSAPMAIServer {
 		} catch (SchedulerException e) {
 			// TODO Auto-generated catch block
 			Util.error("RSAPMAIServer", e.getMessage());
-
 		}
 	}
 
 	public static void main(String[] args) throws Exception {
+		
 		RSAPMAIServer.getInstance().run();
 	}
 }
